@@ -50,8 +50,6 @@ class NetworkSlicingTopo(Topo):
         self.addLink("s7", "h3", **host_config)
         self.addLink("s8", "h4", **host_config)
         
-
-
 topos = {"networkslicingtopo": (lambda: NetworkSlicingTopo())}
 
 if __name__ == "__main__":
