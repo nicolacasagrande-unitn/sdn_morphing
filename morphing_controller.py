@@ -25,27 +25,6 @@ class TrafficSlicing(app_manager.RyuApp):
 
     def __init__(self, *args, **kwargs):
         super(TrafficSlicing, self).__init__(*args, **kwargs)
-    
-        ''' self.mac_port = {
-            1: {"00:00:00:00:00:01": 3},
-            2: {"00:00:00:00:00:01": 2},
-            3: {"00:00:00:00:00:01": 1},
-            4: {"00:00:00:00:00:01": 1},
-            5: {"00:00:00:00:00:01": 1},
-        }
-
-        # out_port = slice_to_port[dpid][service]
-        #1: UDP 9999, 2: TCP 8888, 3: OTHER
-        self.service_slice = {
-            1: {1: 1, 2: 2, 3: 2},
-            2: {1: 1, 2: 1, 3: 1},
-            3: {1: 1, 2: 2, 3: 3},
-            4: {1: 1, 2: 1, 3: 2},
-            5: {1: 1, 3: 1, 2: 2}
-        }
-
-        self.UDP_port = 9999
-        self.TCP_port = 8888 '''
 
         self.UDP_port = 9999 # upper_part = ring lower_part = line 
         self.TCP1_port = 8880 # upper_part = star lower_part = ring 
@@ -58,24 +37,21 @@ class TrafficSlicing(app_manager.RyuApp):
             9: {"00:00:00:00:00:05": 2},
             7: {"00:00:00:00:00:03": 2},
             8: {"00:00:00:00:00:04": 2},
-            5: {"00:00:00:00:00:07": 2, "00:00:00:00:00:06": 2}
+            5: {"00:00:00:00:00:07": 2, "00:00:00:00:00:06": 2},
+            4: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 2, "00:00:00:00:00:05": 2, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1},
+            6: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 2, "00:00:00:00:00:05": 2, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1}
         }
-
+        #upper, 8880, star
         self.upper_tcp1_topology = {
             1: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 2, "00:00:00:00:00:03": 3, "00:00:00:00:00:04": 3, "00:00:00:00:00:05": 3, "00:00:00:00:00:06": 4, "00:00:00:00:00:07": 4 }
         }
-
+        #lower, 8888, star
         self.lower_tcp2_topology = {
             10: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 3, "00:00:00:00:00:05": 4, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1 }
         }
-
-        self.line = {
-
-        }
-
-        self.ring = {
-
-        }
+        #upper line ok
+        #lower ring ok
+        #lower line
         
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -133,106 +109,193 @@ class TrafficSlicing(app_manager.RyuApp):
         dst = eth.dst
         src = eth.src
         dpid = datapath.id
+        tcp_port = pkt.get_protocol(tcp.tcp)
         prot = "OTHER"
         if pkt.get_protocol(udp.udp):
             prot = "UDP"
         elif pkt.get_protocol(tcp.tcp):
             prot = "TCP"
         #self.logger.info("+++++++++++++++++++++++++++++++++")
-        #self.logger.info("ALL: DPID: %s ETHSRC: %s ETHDST: %s   PROT: %s", dpid, src, dst, prot)
+        #self.logger.info("PKT MSG: %s", pkt)
+        self.logger.info("+++++++++++++++++++++++++++++++++")
+        self.logger.info("ALL: DPID: %s ETHSRC: %s ETHDST: %s   PROT: %s TCP_PORT: %s", dpid, src, dst, prot, tcp_port)
        
-        #controllo che lo switch sia in self.macport
+        #controllo che lo switch sia in self.macport e la destinazione sia in self.mac_port[switch]
         if dpid in self.mac_port:
-            #controllo che la destinazione sia dentro a self.macport di quello switch 
             if dst in self.mac_port[dpid]:
-                print(str(bcolors.OKCYAN) + str(dst) + " <== " + str(dpid) + str(bcolors.ENDC))
                 out_port = self.mac_port[dpid][dst]
-                actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
-                match = datapath.ofproto_parser.OFPMatch(eth_dst=dst)
-                self.add_flow(datapath, 1, match, actions)
-                self._send_package(msg, datapath, in_port, actions)
-
-            elif (pkt.get_protocol(tcp.tcp) and pkt.get_protocol(tcp.tcp).dst_port == self.TCP_port):
-
-                
-
-                slice_number = 2
-                out_port = self.service_slice[dpid][slice_number]
-                print(str(bcolors.OKGREEN)+ "TCP:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
-                match = datapath.ofproto_parser.OFPMatch(
-                    in_port=in_port,
-                    eth_dst=dst,
-                    eth_src=src,
-                    eth_type=ether_types.ETH_TYPE_IP,
-                    ip_proto=0x06,  # tcp
-                )
-                actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
-                self.add_flow(datapath, 1, match, actions)
-                self._send_package(msg, datapath, in_port, actions)
-                
-                
-
             else:
-                
-                slice_number = 2
-                if dpid == 3 or dpid == 4:
-                    slice_number = 3
-                
-                out_port = self.service_slice[dpid][slice_number]
-                match = datapath.ofproto_parser.OFPMatch(
-                    in_port=in_port,
-                    eth_dst=dst,
-                    eth_src=src,
-                    eth_type=ether_types.ETH_TYPE_IP,
-                    ip_proto=0x01,  # icmp
-                )
-                actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
-                self.add_flow(datapath, 1, match, actions)
-                self._send_package(msg, datapath, in_port, actions)
-                #self.logger.info("OTHER: %s ==> %s", dpid, dst)
+                self.logger.info("BACK")
+                out_port = 1
+            
+            actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+            match = datapath.ofproto_parser.OFPMatch(eth_dst=dst)
+            self.add_flow(datapath, 1, match, actions)
+            self._send_package(msg, datapath, in_port, actions)
 
-        elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port):
 
-                out_port = self.upper_tcp1_topology[dpid][dst]
-                print(str(bcolors.OKBLUE)+ "upper TCP1:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
-                self.logger.info("+++++++++++++++++++++++++++++++++")
+            
+            self.logger.info(str(bcolors.OKGREEN)+ "MACPORT:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
+            self.logger.info("-------------------------------------")
 
-                match = datapath.ofproto_parser.OFPMatch(
-                    in_port=in_port,
-                    eth_dst=dst,
-                    eth_src=src,
-                    eth_type=ether_types.ETH_TYPE_IP,
-                    ip_proto=0x06,  # tcp
-                    tcp_dst=self.TCP1_port
-                )
-                actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
-                self.add_flow(datapath, 1, match, actions)
-                self._send_package(msg, datapath, in_port, actions)
+            
 
-        elif dpid in self.lower_tcp2_topology and (pkt.get_protocol(tcp.tcp) and pkt.get_protocol(tcp.tcp).dst_port == self.TCP2_port):
+        #upper slice, tcp 8880 star
+        elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP1_port)):
 
-                out_port = self.lower_tcp2_topology[dpid][dst]
-                print(str(bcolors.OKBLUE)+ "lower TCP2:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
-                self.logger.info("+++++++++++++++++++++++++++++++++")
+            out_port = self.upper_tcp1_topology[dpid][dst]
+            self.logger.info(str(bcolors.OKBLUE)+ "upper TCP1:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
+            self.logger.info("+++++++++++++++++++++++++++++++++")
 
-                match = datapath.ofproto_parser.OFPMatch(
-                    in_port=in_port,
-                    eth_dst=dst,
-                    eth_src=src,
-                    eth_type=ether_types.ETH_TYPE_IP,
-                    ip_proto=0x06,  # tcp
-                    tcp_dst=self.TCP2_port
-                )
-                actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
-                self.add_flow(datapath, 1, match, actions)
-                self._send_package(msg, datapath, in_port, actions)
+            match = datapath.ofproto_parser.OFPMatch(
+                in_port=in_port,
+                eth_dst=dst,
+                eth_src=src,
+                eth_type=ether_types.ETH_TYPE_IP,
+                ip_proto=0x06,  # tcp
+                tcp_dst=self.TCP1_port
+            )
+            actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+            self.add_flow(datapath, 1, match, actions)
+            self._send_package(msg, datapath, in_port, actions)
+
+        #lower slice, tcp 8888, star
+        elif dpid in self.lower_tcp2_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP2_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP2_port)):
+
+            out_port = self.lower_tcp2_topology[dpid][dst]
+            self.logger.info(str(bcolors.OKBLUE)+ "lower TCP2:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
+            self.logger.info("+++++++++++++++++++++++++++++++++")
+
+            match = datapath.ofproto_parser.OFPMatch(
+                in_port=in_port,
+                eth_dst=dst,
+                eth_src=src,
+                eth_type=ether_types.ETH_TYPE_IP,
+                ip_proto=0x06,  # tcp
+                tcp_dst=self.TCP2_port
+            )
+            actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+            self.add_flow(datapath, 1, match, actions)
+            self._send_package(msg, datapath, in_port, actions)
+
+        #upper slice, tcp 8888, line
+        elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP2_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP2_port)):
+
+            real_next = self.upper_tcp1_topology[dpid][dst]
+            src_port = self.upper_tcp1_topology[dpid][src]
+            
+            if src_port < real_next:
+                out_port = src_port+1
+            else:
+                out_port = src_port-1
+
+        
+            self.logger.info(str(bcolors.OKBLUE)+ "upper line:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
+            self.logger.info("+++++++++++++++++++++++++++++++++")
+
+            match = datapath.ofproto_parser.OFPMatch(
+                in_port=in_port,
+                eth_dst=dst,
+                eth_src=src,
+                eth_type=ether_types.ETH_TYPE_IP,
+                ip_proto=0x06,  # tcp
+                tcp_dst=self.TCP2_port
+            )
+            actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+            self.add_flow(datapath, 1, match, actions)
+            self._send_package(msg, datapath, in_port, actions)
+            
+
+        #lower slice, tcp 8880 ring
+        elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP1_port)):
+
+            real_next = self.upper_tcp1_topology[dpid][dst]
+            src_port = self.upper_tcp1_topology[dpid][src]
+            
+            if src_port < real_next:
+                out_port = (src_port+1)%4
+            else:
+                out_port = (src_port-1)%4
+
+
+            
+            self.logger.info(str(bcolors.OKBLUE)+ "lower ring:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
+            self.logger.info("+++++++++++++++++++++++++++++++++")
+
+            match = datapath.ofproto_parser.OFPMatch(
+                in_port=in_port,
+                eth_dst=dst,
+                eth_src=src,
+                eth_type=ether_types.ETH_TYPE_IP,
+                ip_proto=0x06,  # tcp
+                tcp_dst=self.TCP1_port
+            )
+            actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+            self.add_flow(datapath, 1, match, actions)
+            self._send_package(msg, datapath, in_port, actions)
                        
+        #upper, udp, 9999, ring
+        elif dpid in self.upper_tcp1_topology and pkt.get_protocol(udp.udp) and pkt.get_protocol(udp.udp).dst_port == self.UDP_port and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
 
-        elif dpid not in self.end_swtiches:
+            real_next = self.upper_tcp1_topology[dpid][dst]
+            src_port = self.upper_tcp1_topology[dpid][src]
+            
+            if src_port < real_next:
+                out_port = (src_port+1)%4
+            else:
+                out_port = (src_port-1)%4
+
+                self.logger.info(str(bcolors.OKBLUE)+ "UDP upper ring:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
+                self.logger.info("+++++++++++++++++++++++++++++++++")
+                
+                match = datapath.ofproto_parser.OFPMatch(
+                    in_port=in_port,
+                    eth_dst=dst,
+                    eth_src=src,
+                    eth_type=ether_types.ETH_TYPE_IP,
+                    ip_proto=0x11,  # udp
+                    udp_dst=self.UDP_port,
+                )
+
+                actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+                self.add_flow(datapath, 2, match, actions)
+                self._send_package(msg, datapath, in_port, actions)
+
+        #lower, udp, 9999, line
+        elif dpid in self.lower_tcp2_topology and pkt.get_protocol(udp.udp) and pkt.get_protocol(udp.udp).dst_port == self.UDP_port and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
+
+                real_next = self.lower_tcp2_topology[dpid][dst]
+                src_port = self.lower_tcp2_topology[dpid][src]
+            
+                if src_port < real_next:
+                    out_port = src_port+1
+                else:
+                    out_port = src_port-1                
+
+                
+                self.logger.info(str(bcolors.OKBLUE)+ "UDP:" + str(dpid) + " ==> " + str(dst) + str(bcolors.ENDC) + " NEXT: " + str(out_port))
+                self.logger.info("+++++++++++++++++++++++++++++++++")
+                
+                match = datapath.ofproto_parser.OFPMatch(
+                    in_port=in_port,
+                    eth_dst=dst,
+                    eth_src=src,
+                    eth_type=ether_types.ETH_TYPE_IP,
+                    ip_proto=0x11,  # udp
+                    udp_dst=self.UDP_port,
+                )
+
+                actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+                self.add_flow(datapath, 2, match, actions)
+                self._send_package(msg, datapath, in_port, actions)
+
+
+
+        '''else:
+            self.logger.info("ELSE")
             out_port = ofproto.OFPP_FLOOD
             actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
             match = datapath.ofproto_parser.OFPMatch(in_port=in_port)
             self.add_flow(datapath, 1, match, actions)
-            self._send_package(msg, datapath, in_port, actions)
-            
+            self._send_package(msg, datapath, in_port, actions)'''
         
