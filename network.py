@@ -35,8 +35,8 @@ class NetworkSlicingTopo(Topo):
         self.addLink("s2", "h1", **host_config)
         self.addLink("s3", "h2", **host_config)
         self.addLink("s5", "s11", **switch_config)
-        self.addLink("s5", "h6", **host_config)
-        self.addLink("s5", "h7", **host_config)
+        self.addLink("s11", "h6", **host_config)
+        self.addLink("s11", "h7", **host_config)
 
         #Middle connection
         self.addLink("s4", "s6", **switch_config)
