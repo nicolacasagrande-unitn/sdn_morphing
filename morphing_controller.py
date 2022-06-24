@@ -113,7 +113,6 @@ class TrafficSlicing(app_manager.RyuApp):
             data=data,
         )
         res = datapath.send_msg(out)
-        self.logger.info("MSG_OUT: %s",res)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
@@ -121,7 +120,6 @@ class TrafficSlicing(app_manager.RyuApp):
         datapath = msg.datapath
         ofproto = datapath.ofproto
         in_port = msg.match["in_port"]
-        #self.logger.info("MSG_IN: %s",msg)
 
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocol(ethernet.ethernet)
@@ -139,8 +137,7 @@ class TrafficSlicing(app_manager.RyuApp):
         elif pkt.get_protocol(tcp.tcp):
             prot = "TCP"
 
-        if(dst[0:2]=="00"):
-                self.logger.info("SRC: %s IN_PORT: %s DST: %s",src,in_port,dst)
+        
        
         #controllo che lo switch sia in self.macport e la destinazione sia in self.mac_port[switch]
         if dpid in self.mac_port:
@@ -148,6 +145,9 @@ class TrafficSlicing(app_manager.RyuApp):
                 out_port = self.mac_port[dpid][dst]
             else:
                 out_port = 1
+            
+            if(in_port == out_port):
+                out_port = ofproto.OFPP_IN_PORT
             
             actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
             match = datapath.ofproto_parser.OFPMatch(eth_dst=dst)
@@ -222,18 +222,21 @@ class TrafficSlicing(app_manager.RyuApp):
             self._send_package(msg, datapath, in_port, actions)
 
             print_path(self, dpid, out_port, dst, "ul")
+            self.logger.info("[INFO]: %s",pkt)
             
 
         #lower slice, tcp 8880 ring
-        elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP1_port)):
+        elif dpid in self.lower_tcp2_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP1_port)):
 
-            real_next = self.upper_tcp1_topology[dpid][dst]
+            out_port = (in_port%4)+1
+
+            '''real_next = self.lower_tcp2_topology[dpid][dst]
             src_port = in_port
             
             if src_port < real_next:
-                out_port = (src_port+1)%4
+                out_port = (src_port%4)+1
             else:
-                out_port = (src_port-1)%4
+                out_port = (src_port%4)-1'''
 
 
             match = datapath.ofproto_parser.OFPMatch(
@@ -251,15 +254,21 @@ class TrafficSlicing(app_manager.RyuApp):
             print_path(self, dpid, out_port, dst, "lr")
                        
         #upper, udp, 9999, ring
-        elif dpid in self.upper_tcp1_topology and pkt.get_protocol(udp.udp) and pkt.get_protocol(udp.udp).dst_port == self.UDP_port and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
+        elif dpid in self.upper_tcp1_topology and pkt.get_protocol(udp.udp) and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
             
-            real_next = self.upper_tcp1_topology[dpid][dst]
+            out_port = (in_port%4)+1
+            
+            if(in_port == out_port):
+                out_port = ofproto.OFPP_IN_PORT
+            self.logger.info("IN_PORT: %s OUT_PORT: %s",in_port,out_port)
+
+            '''real_next = self.upper_tcp1_topology[dpid][dst]
             src_port = in_port
 
             if src_port < real_next:
-                out_port = (src_port+1)%4
+                out_port = (src_port%4)+1
             else:
-                out_port = (src_port-1)%4
+                out_port = (src_port%4)-1'''
             
             match = datapath.ofproto_parser.OFPMatch(
                 in_port=in_port,
@@ -279,7 +288,7 @@ class TrafficSlicing(app_manager.RyuApp):
             print_path(self, dpid, out_port, dst, "ur")
 
         #lower, udp, 9999, line
-        elif dpid in self.lower_tcp2_topology and pkt.get_protocol(udp.udp) and pkt.get_protocol(udp.udp).dst_port == self.UDP_port and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
+        elif dpid in self.lower_tcp2_topology and pkt.get_protocol(udp.udp) and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
 
                 real_next = self.lower_tcp2_topology[dpid][dst]
                 src_port = in_port
@@ -303,4 +312,8 @@ class TrafficSlicing(app_manager.RyuApp):
                 self._send_package(msg, datapath, in_port, actions)
                 
                 print_path(self, dpid, out_port, dst, "ll")
+
+        elif(dst[0:2]=="00"):
+            self.logger.info("ELSE: %s",dpid)
+       
 
