@@ -54,13 +54,13 @@ class TrafficSlicing(app_manager.RyuApp):
         self.mac_port = {
             2: {"00:00:00:00:00:01": 2},
             3: {"00:00:00:00:00:02": 2},
-            11: {"00:00:00:00:00:07": 3, "00:00:00:00:00:06": 2},
-            9: {"00:00:00:00:00:05": 2},
+            4: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 2, "00:00:00:00:00:05": 2, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1},
+            5: {"00:00:00:00:00:07": 2, "00:00:00:00:00:06": 2},
+            6: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 2, "00:00:00:00:00:05": 2, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1},
             7: {"00:00:00:00:00:03": 2},
             8: {"00:00:00:00:00:04": 2},
-            5: {"00:00:00:00:00:07": 2, "00:00:00:00:00:06": 2},
-            4: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 2, "00:00:00:00:00:05": 2, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1},
-            6: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 2, "00:00:00:00:00:05": 2, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1}
+            9: {"00:00:00:00:00:05": 2},
+            11: {"00:00:00:00:00:07": 3, "00:00:00:00:00:06": 2}
         }
         #upper, 8880, star
         self.upper_tcp1_topology = {
@@ -137,9 +137,8 @@ class TrafficSlicing(app_manager.RyuApp):
         elif pkt.get_protocol(tcp.tcp):
             prot = "TCP"
 
-        
-       
         #controllo che lo switch sia in self.macport e la destinazione sia in self.mac_port[switch]
+        #questo accade quando si è in uno degli switch esterni 
         if dpid in self.mac_port:
             if dst in self.mac_port[dpid]:
                 out_port = self.mac_port[dpid][dst]
@@ -156,9 +155,6 @@ class TrafficSlicing(app_manager.RyuApp):
 
             print_path(self, dpid, out_port, dst, "")
             
-            
-            
-
         #upper slice, tcp 8880 star
         elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP1_port)):
 
@@ -183,7 +179,6 @@ class TrafficSlicing(app_manager.RyuApp):
 
             out_port = self.lower_tcp2_topology[dpid][dst]
         
-
             match = datapath.ofproto_parser.OFPMatch(
                 in_port=in_port,
                 eth_dst=dst,
@@ -222,7 +217,7 @@ class TrafficSlicing(app_manager.RyuApp):
             self._send_package(msg, datapath, in_port, actions)
 
             print_path(self, dpid, out_port, dst, "ul")
-            self.logger.info("[INFO]: %s",pkt)
+            #self.logger.info("[INFO]: %s",pkt)
             
 
         #lower slice, tcp 8880 ring
