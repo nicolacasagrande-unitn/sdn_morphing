@@ -14,6 +14,7 @@ For messages packets the upper subnet will use a line topology and the lower one
 For video packets the upper subnet will use a rign topology and the lower one will use a line topology.
 
 # Image of the topology
+![alt text](https://github.com/nicolacasagrande-unitn/sdn_morphing/blob/main/network_topology.png)
 
 ## How to Run 
 
@@ -23,7 +24,7 @@ You can run the emulation process by using the following commands:
     ```bash
     vagrant up comnetsemu
     ```
-2. Open two different terminals and connect to the comnetsemu virtual machine in both of them by        running:
+2. Open two different terminals and connect to the comnetsemu virtual machine in both of them by running:
     ```bash
     vagrant ssh comnetsemu
     ```
