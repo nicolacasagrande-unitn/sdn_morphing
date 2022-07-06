@@ -1,7 +1,7 @@
 # Morphing Network Slices
 
 ## Introduction
-This project shows how to use RYU SDN controller to dynamically change the topology of a predefined network. The network we take into consideration is composed of two sub-networks, each of them is made up by five switches, one of them is in the middle and is connected to all the other four swithces that may also be connected to other switches or hosts. The physical topology of the two subnetworks is thus a star topology. 
+This project shows how to use RYU SDN controller to dynamically change the topology of a predefined network. The network we take into consideration is composed of two sub-networks, each of them is made up of five switches, one of them is in the middle and is connected to all the other four swithces that may also be connected to other switches or hosts. The physical topology of the two subnetworks is thus a star topology. 
 Every host can communicate with all the other hosts and can host services, the topology of the network changes based on the type of packet that is sent by the hosts.
 
 Hosts can use three types of different services: 
