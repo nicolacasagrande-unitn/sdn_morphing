@@ -78,7 +78,9 @@ You can run the emulation process by using the following commands:
     ```bash
     iperf -c 10.0.0.4 -p 8880 -b 10M -t 1 -i 1 
     ```
+<br>
 ![alt text](https://github.com/nicolacasagrande-unitn/sdn_morphing/blob/main/Test1.png)
+<br>
 ### Testing the messages service
 
 1. In the mininet console run two terminals for h1 and h3 using:
@@ -93,7 +95,9 @@ You can run the emulation process by using the following commands:
     ```bash
     iperf -c 10.0.0.1 -p 8888 -b 10M -t 1 -i 1 
     ```
+<br>
 ![alt text](https://github.com/nicolacasagrande-unitn/sdn_morphing/blob/main/Test2.png)
+<br>
 ### Testing the video service
 
 1. In the mininet console run two terminals for h5 and h6 using:
@@ -108,6 +112,7 @@ You can run the emulation process by using the following commands:
     ```bash
     iperf -c 10.0.0.5 -u -p 9999 -b 10M -t 1 -i 1 
     ```
+<br>
 ![alt text](https://github.com/nicolacasagrande-unitn/sdn_morphing/blob/main/Test3.png)
-
+<br>
 
