@@ -96,15 +96,15 @@ You can run the emulation process by using the following commands:
 
 ### Testing the video service
 
-1. In the mininet console run two terminals for h5 and h7 using:
+1. In the mininet console run two terminals for h5 and h6 using:
     ```bash
-    xterm h5 h7
+    xterm h5 h6
     ```
 2. To initialize h5 as a server and start listening for UDP packets on port 9999 run the following command in the h5 terminal:
     ```bash
     iperf -s -u -p 9999 -b 10M
     ```
-3. To send a UDP packet on port 9999 to server h5 from host h7 run the following command:
+3. To send a UDP packet on port 9999 to server h5 from host h6 run the following command:
     ```bash
     iperf -c 10.0.0.5 -u -p 9999 -b 10M -t 1 -i 1 
     ```
