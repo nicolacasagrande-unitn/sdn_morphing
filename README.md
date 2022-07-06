@@ -5,9 +5,9 @@ This project shows how to use RYU SDN controller to dynamically change the topol
 Every host can communicate with all the other hosts and can host services, the topology of the network changes based on the type of packet that is sent by the hosts.
 
 Hosts can use three types of different services: 
-documents -> TCP packet with 8880 as destination port 
-messages -> TCP packet with 8888 as destination port 
-video -> UDP packet with 9999 as the destination port
+1. documents -> TCP packet with 8880 as destination port 
+2. messages -> TCP packet with 8888 as destination port 
+3. video -> UDP packet with 9999 as the destination port
 
 For documents packets the upper subnet will use a star topology and the lower one will use a ring topology.
 For messages packets the upper subnet will use a line topology and the lower one will use a star topology.
@@ -35,7 +35,11 @@ You can run the emulation process by using the following commands:
     ```bash
     ryu-manager morphing_controller.py &
     ```
-5. In the first terminal run the following command to start mininet and create the topology
+5. In the first terminal run the following command to start mininet and create the topology:
+    ```bash
+    sudo python3 network.py
+    ```
+    If xterm does not work you can try to run the network with this alternative command:
     ```bash
     sudo -E python3 network.py
     ```
@@ -45,7 +49,7 @@ You can run the emulation process by using the following commands:
     ```bash
     links
     ```
-# Testing the documents service
+### Testing the documents service
 
 1. In the mininet console run two terminals for h2 and h4 using:
     ```bash
@@ -55,13 +59,40 @@ You can run the emulation process by using the following commands:
     ```bash
     iperf -s -p 8880 -b 10M
     ```
-3. To send a TCP packet on port 8880 to server h4 from host h2 
+3. To send a TCP packet on port 8880 to server h4 from host h2 run the following command:
     ```bash
-    iperf -c 10.0.0.4 -p 8880 -b 10M -t 5 -i 1 
+    iperf -c 10.0.0.4 -p 8880 -b 10M -t 1 -i 1 
     ```
 
+### Testing the messages service
 
+1. In the mininet console run two terminals for h2 and h4 using:
+    ```bash
+    xterm h1 h3
+    ```
+2. To initialize h1 as a server and start listening for TCP packets on port 8880 run the following command in the h1 terminal:
+    ```bash
+    iperf -s -p 8888 -b 10M
+    ```
+3. To send a TCP packet on port 8888 to server h1 from host h3 run the following command:
+    ```bash
+    iperf -c 10.0.0.1 -p 8888 -b 10M -t 1 -i 1 
+    ```
 
+### Testing the video service
+
+1. In the mininet console run two terminals for h2 and h4 using:
+    ```bash
+    xterm h5 h6
+    ```
+2. To initialize h5 as a server and start listening for UDP packets on port 9999 run the following command in the h5 terminal:
+    ```bash
+    iperf -s -u -p 9999 -b 10M
+    ```
+3. To send a UDP packet on port 9999 to server h5 from host h6 run the following command:
+    ```bash
+    iperf -c 10.0.0.5 -u -p 9999 -b 10M -t 1 -i 1 
+    ```
 
 
 
