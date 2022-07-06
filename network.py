@@ -9,25 +9,24 @@ from mininet.link import TCLink
 
 class NetworkSlicingTopo(Topo):
     def __init__(self):
-        # Initialize topology
+        #initialize topology
         Topo.__init__(self)
 
-        # Create template host, switch, and link
         host_config = dict(inNamespace=True)
         switch_config = dict(bw=20)
 
-        # Create switch nodes
+        #create switch nodes
         for i in range(11):
             sconfig = {"dpid": "%016x" % (i + 1)}
             self.addSwitch("s%d" % (i + 1), **sconfig)
 
-        # Create host nodes
+        #create host nodes
         for i in range(7):
             self.addHost("h%d" % (i + 1), **host_config)
         
-        # Add switch and host links in a specific order
+        #add switch and host links in a specific order
 
-        #Upper slice
+        #upper slice
         self.addLink("s1", "s2", **switch_config)
         self.addLink("s1", "s3", **switch_config)
         self.addLink("s1", "s4", **switch_config)
@@ -38,10 +37,10 @@ class NetworkSlicingTopo(Topo):
         self.addLink("s11", "h6", **host_config)
         self.addLink("s11", "h7", **host_config)
 
-        #Middle connection
+        #link that connects the slices
         self.addLink("s4", "s6", **switch_config)
 
-        #Lower slice
+        #lower slice
         self.addLink("s10", "s6", **switch_config)
         self.addLink("s10", "s7", **switch_config)
         self.addLink("s10", "s8", **switch_config)
@@ -52,6 +51,7 @@ class NetworkSlicingTopo(Topo):
         
 topos = {"networkslicingtopo": (lambda: NetworkSlicingTopo())}
 
+#network and controller are started
 if __name__ == "__main__":
     topo = NetworkSlicingTopo()
     net = Mininet(

@@ -1,4 +1,3 @@
-from email.policy import default
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
@@ -11,34 +10,37 @@ from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
 
 class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
+    COLOR_RED = '\x1b[31m'
+    COLOR_GREEN = '\x1b[32m'
+    COLOR_YELLOW = '\x1b[33m'
+    COLOR_BLUE = '\x1b[34m'
+    COLOR_MAGENTA = '\x1b[35m'
+    COLOR_CYAN = '\x1b[36m'
     ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-def print_path(self, current_switch, out_port, dst_host, service):
-    if(dst_host[0:2]=="00"):
+#prints the path that the packet follows from the sender to the receiver 
+#every switch that the packet reaches is printed in this way: 
+#[<switch_number>](eth: <eth_number>)(dst: <destination_MAC>)
+#the path followed by the acknowledgement packets is not printed 
+def print_path(self, current_switch, out_port, dst_host, service, src_port):
+    #only the packets that have a destination MAC that starts with 00 are printed, this to avoid packets sent automatically by RYU controller 
+    #the packets are only printed if they do not come from the ports that we selected for the service in this way we avoid printing acknowledgement packets
+    if(dst_host[0:2]=="00" and src_port != self.video and src_port != self.documents and src_port != self.messages):
         color = ""
         if(service=="ul"):
-            color = bcolors.OKBLUE
+            color = bcolors.COLOR_GREEN
         elif(service=="ur"):
-            color = bcolors.OKCYAN
+            color = bcolors.COLOR_YELLOW
         elif(service=="us"):
-            color = bcolors.OKGREEN
+            color = bcolors.COLOR_BLUE
         elif(service=="ll"):
-            color = bcolors.WARNING
+            color = bcolors.COLOR_MAGENTA
         elif(service=="lr"):
-            color = bcolors.FAIL
+            color = bcolors.COLOR_CYAN
         elif(service=="ls"):
-            color = bcolors.HEADER
+            color = bcolors.COLOR_RED
 
         self.logger.info(str(color)+ "[%s](eth: %s)(dst: %s) =>" + str(bcolors.ENDC),current_switch,out_port,dst_host)
-    
 
 
 class TrafficSlicing(app_manager.RyuApp):
@@ -47,10 +49,12 @@ class TrafficSlicing(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(TrafficSlicing, self).__init__(*args, **kwargs)
 
-        self.UDP_port = 9999 # upper_part = ring lower_part = line 
-        self.TCP1_port = 8880 # upper_part = star lower_part = ring 
-        self.TCP2_port = 8888 # upper_part = line lower_part = star 
+        #we have selected three different services that have been assigned to three different ports
+        self.video = 9999 # upper_part = ring lower_part = line 
+        self.documents = 8880 # upper_part = star lower_part = ring 
+        self.messages = 8888 # upper_part = line lower_part = star 
 
+        #in the self.mac_port variable we define the rules that swithces will have to follow for all the packets regardless of their type
         self.mac_port = {
             2: {"00:00:00:00:00:01": 2},
             3: {"00:00:00:00:00:02": 2},
@@ -62,17 +66,16 @@ class TrafficSlicing(app_manager.RyuApp):
             9: {"00:00:00:00:00:05": 2},
             11: {"00:00:00:00:00:07": 3, "00:00:00:00:00:06": 2}
         }
-        #upper, 8880, star
-        self.upper_tcp1_topology = {
+        
+        #rules followed by s1 in the upper star topology
+        self.s1 = {
             1: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 2, "00:00:00:00:00:03": 3, "00:00:00:00:00:04": 3, "00:00:00:00:00:05": 3, "00:00:00:00:00:06": 4, "00:00:00:00:00:07": 4 }
         }
-        #lower, 8888, star
-        self.lower_tcp2_topology = {
+        
+        #rules followed by s10 in the lower star topology
+        self.s10 = {
             10: {"00:00:00:00:00:01": 1, "00:00:00:00:00:02": 1, "00:00:00:00:00:03": 2, "00:00:00:00:00:04": 3, "00:00:00:00:00:05": 4, "00:00:00:00:00:06": 1, "00:00:00:00:00:07": 1 }
         }
-        #upper line ok
-        #lower ring ok
-        #lower line
         
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -81,7 +84,6 @@ class TrafficSlicing(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        # install the table-miss flow entry.
         match = parser.OFPMatch()
         actions = [
             parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)
@@ -92,7 +94,6 @@ class TrafficSlicing(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        # construct flow_mod message and send it.
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
         mod = parser.OFPFlowMod(
             datapath=datapath, priority=priority, match=match, instructions=inst
@@ -130,21 +131,19 @@ class TrafficSlicing(app_manager.RyuApp):
         dst = eth.dst
         src = eth.src
         dpid = datapath.id
-        tcp_port = pkt.get_protocol(tcp.tcp)
-        prot = "OTHER"
-        if pkt.get_protocol(udp.udp):
-            prot = "UDP"
-        elif pkt.get_protocol(tcp.tcp):
-            prot = "TCP"
 
-        #controllo che lo switch sia in self.macport e la destinazione sia in self.mac_port[switch]
-        #questo accade quando si è in uno degli switch esterni 
+        #check if the switch has the destination in the self.mac_port variable
+        #in that case we are in one of the external switches so we just have to send the packet 
+        #in fact the external switches do not have to follow specific paths based on the packet type
+        #if the destination is not in self.mac_port but the switch is external
+        #the packet is sent to the central switch
         if dpid in self.mac_port:
             if dst in self.mac_port[dpid]:
                 out_port = self.mac_port[dpid][dst]
             else:
                 out_port = 1
             
+            #if the packet has to go back to the source port the out_port is set to OFPP_IN_PORT
             if(in_port == out_port):
                 out_port = ofproto.OFPP_IN_PORT
             
@@ -153,12 +152,17 @@ class TrafficSlicing(app_manager.RyuApp):
             self.add_flow(datapath, 1, match, actions)
             self._send_package(msg, datapath, in_port, actions)
 
-            print_path(self, dpid, out_port, dst, "")
+            if(pkt.get_protocol(tcp.tcp)):
+                print_path(self, dpid, out_port, dst, "", pkt.get_protocol(tcp.tcp).src_port)
+            elif(pkt.get_protocol(udp.udp)):
+                print_path(self, dpid, out_port, dst, "", pkt.get_protocol(udp.udp).src_port)
             
-        #upper slice, tcp 8880 star
-        elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP1_port)):
+            
+        #upper slice, documents service, star
+        #in this case the packet follows the rules defined in the self.s1 variable
+        elif dpid in self.s1 and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.documents or pkt.get_protocol(tcp.tcp).src_port == self.documents)):
 
-            out_port = self.upper_tcp1_topology[dpid][dst]
+            out_port = self.s1[dpid][dst]
 
             match = datapath.ofproto_parser.OFPMatch(
                 in_port=in_port,
@@ -166,18 +170,19 @@ class TrafficSlicing(app_manager.RyuApp):
                 eth_src=src,
                 eth_type=ether_types.ETH_TYPE_IP,
                 ip_proto=0x06,  # tcp
-                tcp_dst=self.TCP1_port
+                tcp_dst=self.documents
             )
             actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
             self.add_flow(datapath, 1, match, actions)
             self._send_package(msg, datapath, in_port, actions)
             
-            print_path(self, dpid, out_port, dst, "us")
+            print_path(self, dpid, out_port, dst, "us", pkt.get_protocol(tcp.tcp).src_port)
 
-        #lower slice, tcp 8888, star
-        elif dpid in self.lower_tcp2_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP2_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP2_port)):
+        #lower slice, messages service, star
+        #in this case the packet follows the rules defined in the self.s10 variable
+        elif dpid in self.s10 and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.messages or pkt.get_protocol(tcp.tcp).src_port == self.messages)):
 
-            out_port = self.lower_tcp2_topology[dpid][dst]
+            out_port = self.s10[dpid][dst]
         
             match = datapath.ofproto_parser.OFPMatch(
                 in_port=in_port,
@@ -185,20 +190,22 @@ class TrafficSlicing(app_manager.RyuApp):
                 eth_src=src,
                 eth_type=ether_types.ETH_TYPE_IP,
                 ip_proto=0x06,  # tcp
-                tcp_dst=self.TCP2_port
+                tcp_dst=self.messages
             )
             actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
             self.add_flow(datapath, 1, match, actions)
             self._send_package(msg, datapath, in_port, actions)
 
-            print_path(self, dpid, out_port, dst, "ls")
+            print_path(self, dpid, out_port, dst, "ls", pkt.get_protocol(tcp.tcp).src_port)
 
-        #upper slice, tcp 8888, line
-        elif dpid in self.upper_tcp1_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP2_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP2_port)):
+        #upper slice, messages service, line
+        elif dpid in self.s1 and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.messages or pkt.get_protocol(tcp.tcp).src_port == self.messages)):
 
-            real_next = self.upper_tcp1_topology[dpid][dst]
+            #real_next would be the port to choose in the star topology 
+            real_next = self.s1[dpid][dst]
             src_port = in_port
             
+            #the out_port in the line case is calculated based on source and destination ports
             if src_port < real_next:
                 out_port = src_port+1
             else:
@@ -210,60 +217,44 @@ class TrafficSlicing(app_manager.RyuApp):
                 eth_src=src,
                 eth_type=ether_types.ETH_TYPE_IP,
                 ip_proto=0x06,  # tcp
-                tcp_dst=self.TCP2_port
+                tcp_dst=self.messages
             )
             actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
             self.add_flow(datapath, 1, match, actions)
             self._send_package(msg, datapath, in_port, actions)
 
-            print_path(self, dpid, out_port, dst, "ul")
-            #self.logger.info("[INFO]: %s",pkt)
+            print_path(self, dpid, out_port, dst, "ul", pkt.get_protocol(tcp.tcp).src_port)
             
 
-        #lower slice, tcp 8880 ring
-        elif dpid in self.lower_tcp2_topology and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.TCP1_port or pkt.get_protocol(tcp.tcp).src_port == self.TCP1_port)):
+        #lower slice, documents service, ring
+        elif dpid in self.s10 and (pkt.get_protocol(tcp.tcp) and (pkt.get_protocol(tcp.tcp).dst_port == self.documents or pkt.get_protocol(tcp.tcp).src_port == self.documents)):
 
+            #the out_port in the ring case is calculated
             out_port = (in_port%4)+1
-
-            '''real_next = self.lower_tcp2_topology[dpid][dst]
-            src_port = in_port
             
-            if src_port < real_next:
-                out_port = (src_port%4)+1
-            else:
-                out_port = (src_port%4)-1'''
-
-
             match = datapath.ofproto_parser.OFPMatch(
                 in_port=in_port,
                 eth_dst=dst,
                 eth_src=src,
                 eth_type=ether_types.ETH_TYPE_IP,
                 ip_proto=0x06,  # tcp
-                tcp_dst=self.TCP1_port
+                tcp_dst=self.documents
             )
             actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
             self.add_flow(datapath, 1, match, actions)
             self._send_package(msg, datapath, in_port, actions)
 
-            print_path(self, dpid, out_port, dst, "lr")
+            print_path(self, dpid, out_port, dst, "lr", pkt.get_protocol(tcp.tcp).src_port)
+                  
                        
-        #upper, udp, 9999, ring
-        elif dpid in self.upper_tcp1_topology and pkt.get_protocol(udp.udp) and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
+        #upper slice, video service, ring
+        elif dpid in self.s1 and pkt.get_protocol(udp.udp) and (pkt.get_protocol(udp.udp).dst_port == self.video or pkt.get_protocol(udp.udp).src_port == self.video):
             
+            #the out_port in the ring case is calculated
             out_port = (in_port%4)+1
             
             if(in_port == out_port):
                 out_port = ofproto.OFPP_IN_PORT
-            self.logger.info("IN_PORT: %s OUT_PORT: %s",in_port,out_port)
-
-            '''real_next = self.upper_tcp1_topology[dpid][dst]
-            src_port = in_port
-
-            if src_port < real_next:
-                out_port = (src_port%4)+1
-            else:
-                out_port = (src_port%4)-1'''
             
             match = datapath.ofproto_parser.OFPMatch(
                 in_port=in_port,
@@ -271,23 +262,23 @@ class TrafficSlicing(app_manager.RyuApp):
                 eth_src=src,
                 eth_type=ether_types.ETH_TYPE_IP,
                 ip_proto=0x11,  # udp
-                udp_dst=self.UDP_port,
+                udp_dst=self.video,
             )
-
-            
 
             actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
             self.add_flow(datapath, 2, match, actions)
-            self._send_package(msg, datapath, out_port, actions)
+            self._send_package(msg, datapath, in_port, actions)
 
-            print_path(self, dpid, out_port, dst, "ur")
+            print_path(self, dpid, out_port, dst, "ur", pkt.get_protocol(udp.udp).src_port)
 
-        #lower, udp, 9999, line
-        elif dpid in self.lower_tcp2_topology and pkt.get_protocol(udp.udp) and (pkt.get_protocol(udp.udp).dst_port == self.UDP_port or pkt.get_protocol(udp.udp).src_port == self.UDP_port):
+        #lower slice, video service, line
+        elif dpid in self.s10 and pkt.get_protocol(udp.udp) and (pkt.get_protocol(udp.udp).dst_port == self.video or pkt.get_protocol(udp.udp).src_port == self.video):
 
-                real_next = self.lower_tcp2_topology[dpid][dst]
+                #real_next would be the port to choose in the star topology
+                real_next = self.s10[dpid][dst]
                 src_port = in_port
             
+                #the out_port in the line case is calculated based on source and destination ports
                 if src_port < real_next:
                     out_port = src_port+1
                 else:
@@ -299,16 +290,11 @@ class TrafficSlicing(app_manager.RyuApp):
                     eth_src=src,
                     eth_type=ether_types.ETH_TYPE_IP,
                     ip_proto=0x11,  # udp
-                    udp_dst=self.UDP_port,
+                    udp_dst=self.video,
                 )
 
                 actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
                 self.add_flow(datapath, 2, match, actions)
                 self._send_package(msg, datapath, in_port, actions)
                 
-                print_path(self, dpid, out_port, dst, "ll")
-
-        elif(dst[0:2]=="00"):
-            self.logger.info("ELSE: %s",dpid)
-       
-
+                print_path(self, dpid, out_port, dst, "ll", pkt.get_protocol(udp.udp).src_port)
