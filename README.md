@@ -1,8 +1,13 @@
 # Morphing Network Slices
 
+This project has been developed for the Softwarized and Virtualized Mobile Networks course by:
+* Lorenzo Antonio Riva 
+* Firas Soussane 
+* Nicola Casagrande
+
 ## Introduction
 This project shows how to use RYU SDN controller to dynamically change the topology of a predefined network. The network we take into consideration is composed of two sub-networks, each of them is made up of five switches, one of them is in the middle and is connected to all the other four swithces that may also be connected to other switches or hosts. The physical topology of the two subnetworks is thus a star topology. 
-Every host can communicate with all the other hosts and can host services, the topology of the network changes based on the type of packet that is sent by the hosts.
+Every host can communicate with all the other hosts and can host services, the topology of the network changes based on the type of packet that is sent by the hosts, the topology change is not physical, in fact the physical topology remains the same through the whole process but the RYU controller simulates the different topologies by routing the packets through different paths based on their type.
 
 Hosts can use three types of different services: 
 * documents -> TCP packet with 8880 as destination port 
@@ -12,6 +17,15 @@ Hosts can use three types of different services:
 For documents packets the upper subnet will use a star topology and the lower one will use a ring topology. <br>
 For messages packets the upper subnet will use a line topology and the lower one will use a star topology. <br>
 For video packets the upper subnet will use a rign topology and the lower one will use a line topology. <br>
+
+Every switch that is reached by the packet is printed in a different color in the terminal:
+* if the packet goes through the upper line topology it is printed in GREEN
+* if the packet goes through the upper ring topology it is printed in YELLOW
+* if the packet goes through the upper star topology it is printed in BLUE
+* if the packet goes through the lower line topology it is printed in MAGENTA
+* if the packet goes through the lower ring topology it is printed in CYAN
+* if the packet goes through the lower star topology it is printed in RED
+* in all the other cases the color is WHITE
 
 # Image of the topology
 ![alt text](https://github.com/nicolacasagrande-unitn/sdn_morphing/blob/main/network_topology.png)
