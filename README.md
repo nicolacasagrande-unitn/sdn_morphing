@@ -9,9 +9,9 @@ Hosts can use three types of different services:
 * messages -> TCP packet with 8888 as destination port 
 * video -> UDP packet with 9999 as the destination port
 
-For documents packets the upper subnet will use a star topology and the lower one will use a ring topology.
-For messages packets the upper subnet will use a line topology and the lower one will use a star topology.
-For video packets the upper subnet will use a rign topology and the lower one will use a line topology.
+For documents packets the upper subnet will use a star topology and the lower one will use a ring topology. <br>
+For messages packets the upper subnet will use a line topology and the lower one will use a star topology. <br>
+For video packets the upper subnet will use a rign topology and the lower one will use a line topology. <br>
 
 # Image of the topology
 ![alt text](https://github.com/nicolacasagrande-unitn/sdn_morphing/blob/main/network_topology.png)
