@@ -5,9 +5,9 @@ This project shows how to use RYU SDN controller to dynamically change the topol
 Every host can communicate with all the other hosts and can host services, the topology of the network changes based on the type of packet that is sent by the hosts.
 
 Hosts can use three types of different services: 
-1. documents -> TCP packet with 8880 as destination port 
-2. messages -> TCP packet with 8888 as destination port 
-3. video -> UDP packet with 9999 as the destination port
+#documents -> TCP packet with 8880 as destination port 
+#messages -> TCP packet with 8888 as destination port 
+#video -> UDP packet with 9999 as the destination port
 
 For documents packets the upper subnet will use a star topology and the lower one will use a ring topology.
 For messages packets the upper subnet will use a line topology and the lower one will use a star topology.
