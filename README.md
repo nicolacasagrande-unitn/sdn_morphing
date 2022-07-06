@@ -67,11 +67,11 @@ You can run the emulation process by using the following commands:
 
 ### Testing the messages service
 
-1. In the mininet console run two terminals for h2 and h4 using:
+1. In the mininet console run two terminals for h1 and h3 using:
     ```bash
     xterm h1 h3
     ```
-2. To initialize h1 as a server and start listening for TCP packets on port 8880 run the following command in the h1 terminal:
+2. To initialize h1 as a server and start listening for TCP packets on port 8888 run the following command in the h1 terminal:
     ```bash
     iperf -s -p 8888 -b 10M
     ```
@@ -82,7 +82,7 @@ You can run the emulation process by using the following commands:
 
 ### Testing the video service
 
-1. In the mininet console run two terminals for h2 and h4 using:
+1. In the mininet console run two terminals for h5 and h6 using:
     ```bash
     xterm h5 h6
     ```
