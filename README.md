@@ -16,7 +16,7 @@ Hosts can use three types of different services:
 
 For documents packets the upper subnet will use a star topology and the lower one will use a ring topology. <br>
 For messages packets the upper subnet will use a line topology and the lower one will use a star topology. <br>
-For video packets the upper subnet will use a rign topology and the lower one will use a line topology. <br>
+For video packets the upper subnet will use a ring topology and the lower one will use a line topology. <br>
 
 Every switch that is reached by the packet is printed in a different color in the terminal:
 * if the packet goes through the upper line topology it is printed in GREEN
